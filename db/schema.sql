@@ -56,3 +56,77 @@ CREATE TABLE reviews (
 );
 
 CREATE INDEX reviews_product_id_idx ON reviews (product_id);
+-- Routines (v2: not created in the local database yet)
+CREATE TYPE media_type AS ENUM ('photo', 'video');
+
+CREATE TABLE routines (
+    id uuid PRIMARY KEY DEFAULT uuidv7(),
+    user_id uuid NOT NULL REFERENCES users(id),
+    title text NOT NULL,
+    description text,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX routines_user_id_idx ON routines (user_id);
+
+-- Steps always need text instructions, for accessibility
+CREATE TABLE routine_steps (
+    id uuid PRIMARY KEY DEFAULT uuidv7(),
+    routine_id uuid NOT NULL REFERENCES routines(id) ON DELETE CASCADE,
+    position smallint NOT NULL,
+    instructions text NOT NULL,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now(),
+    UNIQUE (routine_id, position)
+);
+
+-- Photos and videos, with alt text and captions for accessibility
+CREATE TABLE routine_media (
+    id uuid PRIMARY KEY DEFAULT uuidv7(),
+    routine_id uuid NOT NULL REFERENCES routines(id) ON DELETE CASCADE,
+    step_id uuid REFERENCES routine_steps(id) ON DELETE SET NULL,
+    media_type media_type NOT NULL,
+    url text NOT NULL,
+    position smallint NOT NULL,
+    alt_text text,
+    captions text,
+    created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX routine_media_routine_id_idx ON routine_media (routine_id);
+
+-- Products used in a routine (many-to-many)
+CREATE TABLE routine_products (
+    routine_id uuid NOT NULL REFERENCES routines(id) ON DELETE CASCADE,
+    product_id uuid NOT NULL REFERENCES products(id),
+    PRIMARY KEY (routine_id, product_id)
+);
+
+CREATE INDEX routine_products_product_id_idx ON routine_products (product_id);
+
+-- Tags for searching (many-to-many)
+CREATE TABLE tags (
+    id uuid PRIMARY KEY DEFAULT uuidv7(),
+    name text NOT NULL UNIQUE,
+    created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE routine_tags (
+    routine_id uuid NOT NULL REFERENCES routines(id) ON DELETE CASCADE,
+    tag_id uuid NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+    PRIMARY KEY (routine_id, tag_id)
+);
+
+CREATE INDEX routine_tags_tag_id_idx ON routine_tags (tag_id);
+
+-- Who follows whom (users linked to users)
+CREATE TABLE follows (
+    follower_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    followed_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY (follower_id, followed_id),
+    CHECK (follower_id <> followed_id)
+);
+
+CREATE INDEX follows_followed_id_idx ON follows (followed_id);
